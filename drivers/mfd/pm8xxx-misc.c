@@ -167,6 +167,35 @@ static int pm8xxx_misc_masked_write(struct pm8xxx_misc_chip *chip, u16 addr,
 	return rc;
 }
 
+int pm8xxx_read_register(u16 addr, u8 *value)
+{
+	struct pm8xxx_misc_chip *chip;
+	unsigned long flags;
+	int rc = 0;
+
+	spin_lock_irqsave(&pm8xxx_misc_chips_lock, flags);
+
+	/* Loop over all attached PMICs and call specific functions for them. */
+	list_for_each_entry(chip, &pm8xxx_misc_chips, link) {
+		switch (chip->version) {
+		case PM8XXX_VERSION_8921:
+			rc = pm8xxx_readb(chip->dev->parent, addr, value);
+			if (rc) {
+				pr_err("pm8xxx_readb(0x%03X) failed, rc=%d\n",
+								addr, rc);
+				break;
+			}
+		default:
+			break;
+		}
+	}
+
+	spin_unlock_irqrestore(&pm8xxx_misc_chips_lock, flags);
+
+	return rc;
+}
+EXPORT_SYMBOL_GPL(pm8xxx_read_register);
+
 static int
 __pm8058_disable_smps_locally_set_pull_down(struct pm8xxx_misc_chip *chip,
 	u16 ctrl_addr, u16 test2_addr, u16 master_enable_addr,
